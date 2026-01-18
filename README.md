@@ -58,24 +58,13 @@ cd backend
 pip install -r requirements.txt
 ```
 
-2. 启动后端服务：
+2. 启动：
 
 ```bash
-cd backend
-python app.py
+python -m backend.app
 ```
 
-后端服务将在 http://localhost:5000 启动
-
-3. 打开前端页面：
-
-直接在浏览器中打开 `frontend/index.html` 文件
-
-或者使用启动脚本（Windows）：
-
-```bash
-start.bat
-```
+前端页面将在 http://localhost:5000 显示
 
 ## 使用说明
 
@@ -112,6 +101,7 @@ start.bat
   - 均线策略：基于价格与均线的关系
   - 动量策略：基于价格涨跌幅度
   - 成交量策略：基于成交量变化
+  - ... 等 3 种策略
 
 - 输入股票代码进行分析
 - 系统给出买入/卖出/持有建议
@@ -121,39 +111,12 @@ start.bat
 - 查看所有历史交易记录
 - 显示交易时间、类型、价格、数量等信息
 
-## API接口
-
-### 账户相关
-
-- `GET /api/account` - 获取账户信息
-- `POST /api/account/reset` - 重置账户
-
-### 持仓相关
-
-- `GET /api/positions` - 获取持仓列表
-
-### 交易相关
-
-- `GET /api/trades` - 获取交易记录
-- `POST /api/trade/buy` - 买入股票
-- `POST /api/trade/sell` - 卖出股票
-
-### 股票相关
-
-- `GET /api/stock/search?keyword=xxx` - 搜索股票
-- `GET /api/stock/quote?stock_code=xxx` - 获取股票行情
-- `POST /api/stock/quotes` - 批量获取股票行情
-
-### 策略相关
-
-- `POST /api/strategy/analyze` - 策略分析
-
 ## 注意事项
 
 1. 本系统仅供学习使用，不构成任何投资建议
 2. 数据来源于东方财富API，可能存在延迟
 3. 交易手续费按照实际标准计算（万分之3，最低5元）
-4. 数据存储在本地JSON文件中，请定期备份
+4. 数据存储在本地JSON文件中
 
 ## 扩展开发
 
