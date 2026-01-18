@@ -70,8 +70,8 @@
                     </svg>
                 </div>
                 <div class="user-info">
-                    <div class="user-name">量化交易者</div>
-                    <div class="user-status">在线</div>
+                    <div class="user-name">By...</div>
+                    <div class="user-status">AEddy</div>
                 </div>
             </div>
         </nav>
@@ -151,9 +151,10 @@
                             <div class="card-header">
                                 <h3>市场指数</h3>
                                 <div class="chart-controls">
-                                    <button class="chart-btn active" data-type="kline">K线</button>
-                                    <button class="chart-btn" data-type="line">分时</button>
-                                </div>
+                                <button class="chart-btn active" data-period="day">日</button>
+                                <button class="chart-btn" data-period="week">周</button>
+                                <button class="chart-btn" data-period="month">月</button>
+                            </div>
                             </div>
                             <div id="market-chart" class="chart-container"></div>
                         </div>
@@ -242,11 +243,11 @@
                         <div class="chart-panel">
                             <div class="card stock-chart">
                                 <div class="card-header">
-                                    <h3>K线图</h3>
+                                    <h3>折线图</h3>
                                     <div class="chart-controls">
-                                        <button class="chart-btn active" data-period="day">日K</button>
-                                        <button class="chart-btn" data-period="week">周K</button>
-                                        <button class="chart-btn" data-period="month">月K</button>
+                                        <button class="chart-btn active" data-period="day">日</button>
+                                        <button class="chart-btn" data-period="week">周</button>
+                                        <button class="chart-btn" data-period="month">月</button>
                                     </div>
                                 </div>
                                 <div id="stock-kline-chart" class="chart-container"></div>
@@ -441,6 +442,7 @@
                                 <div class="input-group">
                                     <label>策略类型</label>
                                     <select id="auto-strategy-type">
+                                        <option value="auto">自动选择策略（平衡六种）</option>
                                         <option value="ma">均线策略</option>
                                         <option value="momentum">动量策略</option>
                                         <option value="volume">成交量策略</option>
@@ -452,6 +454,10 @@
                                 <div class="input-group">
                                     <label>交易金额</label>
                                     <input type="number" id="auto-trade-amount" placeholder="输入交易金额">
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="use-all-cash" onchange="toggleTradeAmountInput()">
+                                        <label for="use-all-cash">使用全部可用资金</label>
+                                    </div>
                                 </div>
                                 <div class="input-group">
                                     <label>检查间隔（秒）</label>

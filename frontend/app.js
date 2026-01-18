@@ -1,9 +1,20 @@
-const API_BASE = 'http://localhost:5000/api';
+// 使用当前页面的主机名作为API基础URL，解决手机连接局域网时的问题
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 let currentStock = null;
 let autoTradeInterval = null;
 let charts = {};
 let currentKlinePeriod = 'day';
+
+// 记录自动交易的原始状态，用于开盘时恢复
+let autoTradeOriginalState = {
+    isRunning: false,
+    stockCode: '',
+    strategyType: '',
+    tradeAmount: null,
+    useAllCash: false,
+    checkInterval: 60
+};
 
 async function fetchAPI(endpoint, options = {}) {
     try {
@@ -477,16 +488,30 @@ function getStrategyName(type) {
 async function startAutoTrade() {
     const stockCode = document.getElementById('auto-stock-code').value.trim();
     const strategyType = document.getElementById('auto-strategy-type').value;
-    const tradeAmount = parseFloat(document.getElementById('auto-trade-amount').value);
+    const useAllCash = document.getElementById('use-all-cash').checked;
+    const tradeAmountInput = document.getElementById('auto-trade-amount');
     const checkInterval = parseInt(document.getElementById('auto-check-interval').value);
     
-    if (!stockCode || !tradeAmount || !checkInterval) {
+    if (!stockCode || !checkInterval) {
         showToast('请填写完整的自动交易配置', 'error');
+        return;
+    }
+    
+    if (!useAllCash && (!tradeAmountInput.value || parseFloat(tradeAmountInput.value) <= 0)) {
+        showToast('请填写交易金额或选择使用全部可用资金', 'error');
         return;
     }
     
     if (autoTradeInterval) {
         showToast('自动交易已在运行中', 'error');
+        return;
+    }
+    
+    // 检查当前时间是否处于交易时间
+    const now = new Date();
+    const isTradingTime = isInTradingHours(now);
+    if (!isTradingTime) {
+        showToast('当前处于非交易时间，无法启动自动交易', 'error');
         return;
     }
     
@@ -496,50 +521,100 @@ async function startAutoTrade() {
     document.getElementById('btn-stop-auto-trade').disabled = false;
     
     addAutoTradeLog('自动交易已启动', 'success');
-    addAutoTradeLog(`股票: ${stockCode}, 策略: ${getStrategyName(strategyType)}, 金额: ${formatCurrency(tradeAmount)}, 间隔: ${checkInterval}秒`, 'info');
+    
+    // 获取初始交易金额
+    let tradeAmount = useAllCash ? null : parseFloat(tradeAmountInput.value);
+    
+    // 保存自动交易配置到localStorage
+    const autoTradeConfig = {
+        isRunning: true,
+        stockCode: stockCode,
+        strategyType: strategyType,
+        tradeAmount: tradeAmount,
+        useAllCash: useAllCash,
+        checkInterval: checkInterval
+    };
+    localStorage.setItem('autoTradeConfig', JSON.stringify(autoTradeConfig));
+    
+    // 保存自动交易的原始状态
+    autoTradeOriginalState = {
+        isRunning: true,
+        stockCode: stockCode,
+        strategyType: strategyType,
+        tradeAmount: tradeAmount,
+        useAllCash: useAllCash,
+        checkInterval: checkInterval
+    };
     
     autoTradeInterval = setInterval(async () => {
         try {
+            // 获取可用资金（如果需要）
+            if (useAllCash) {
+                const accountResult = await fetchAPI('/account');
+                if (accountResult.success) {
+                    tradeAmount = accountResult.data.available_cash;
+                }
+            }
+            
+            // 确定使用的策略
+            let currentStrategy = strategyType;
+            if (strategyType === 'auto') {
+                // 自动选择策略（平衡六种策略）
+                currentStrategy = selectBestStrategy(stockCode);
+            }
+            
+            addAutoTradeLog(`正在使用 ${getStrategyName(currentStrategy)} 进行分析...`, 'info');
+            
             const result = await fetchAPI('/strategy/analyze', {
                 method: 'POST',
                 body: JSON.stringify({
                     stock_code: stockCode,
-                    strategy_type: strategyType
+                    strategy_type: currentStrategy
                 })
             });
             
             if (result.success && result.data) {
+                // 显示计算过程
+                displayCalculationProcess(result.data);
+                
                 const signal = result.data.signal;
                 const quote = await fetchAPI(`/stock/quote?stock_code=${stockCode}`);
                 
                 if (quote.success) {
-                    const price = quote.data.current_price;
-                    const shares = Math.floor(tradeAmount / price / 100) * 100;
-                    
-                    if (signal === 'buy' && shares > 0) {
-                        addAutoTradeLog(`策略信号: 买入, 价格: ${price.toFixed(2)}, 数量: ${shares}`, 'info');
-                        
-                        const buyResult = await fetchAPI('/trade/buy', {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                stock_code: stockCode,
-                                stock_name: quote.data.stock_name,
-                                price: price,
-                                shares: shares
-                            })
-                        });
-                        
-                        if (buyResult.success) {
-                            addAutoTradeLog(`买入成功: ${shares}股 @ ${price.toFixed(2)}`, 'success');
-                        } else {
-                            addAutoTradeLog(`买入失败: ${buyResult.message}`, 'error');
-                        }
-                    } else if (signal === 'sell') {
+                            const price = quote.data.current_price;
+                            // 计算可买股数（A股交易最小单位为100股）
+                            const maxShares = Math.floor(tradeAmount / price / 100) * 100;
+                            
+                            addAutoTradeLog(`策略信号: ${signal}, 当前价格: ${price.toFixed(2)}, 可用资金: ${formatCurrency(tradeAmount)}, 可买股数: ${maxShares}股`, 'info');
+                            
+                            if (signal === 'buy' && maxShares > 0) {
+                                addAutoTradeLog(`执行买入操作: ${maxShares}股 @ ${price.toFixed(2)}`, 'info');
+                                
+                                const buyResult = await fetchAPI('/trade/buy', {
+                                    method: 'POST',
+                                    body: JSON.stringify({
+                                        stock_code: stockCode,
+                                        stock_name: quote.data.stock_name,
+                                        price: price,
+                                        shares: maxShares
+                                    })
+                                });
+                                
+                                if (buyResult.success) {
+                                    addAutoTradeLog(`买入成功: ${maxShares}股 @ ${price.toFixed(2)}`, 'success');
+                                    // 刷新持仓数据
+                                    loadPositions();
+                                } else {
+                                    addAutoTradeLog(`买入失败: ${buyResult.message}`, 'error');
+                                }
+                            } else if (signal === 'buy' && maxShares <= 0) {
+                                addAutoTradeLog(`可用资金不足，无法买入 ${quote.data.stock_name}。当前价格: ${price.toFixed(2)}元，可用资金: ${formatCurrency(tradeAmount)}元，需要至少 ${formatCurrency(price * 100)}元才能买入100股。`, 'warning');
+                            } else if (signal === 'sell') {
                         const positionsResult = await fetchAPI('/positions');
                         if (positionsResult.success) {
                             const position = positionsResult.data.find(p => p.stock_code === stockCode);
                             if (position && position.shares > 0) {
-                                addAutoTradeLog(`策略信号: 卖出, 价格: ${price.toFixed(2)}, 数量: ${position.shares}`, 'info');
+                                addAutoTradeLog(`执行卖出操作: ${position.shares}股 @ ${price.toFixed(2)}`, 'info');
                                 
                                 const sellResult = await fetchAPI('/trade/sell', {
                                     method: 'POST',
@@ -553,11 +628,17 @@ async function startAutoTrade() {
                                 
                                 if (sellResult.success) {
                                     addAutoTradeLog(`卖出成功: ${position.shares}股 @ ${price.toFixed(2)}`, 'success');
+                                    // 刷新持仓数据
+                                    loadPositions();
                                 } else {
                                     addAutoTradeLog(`卖出失败: ${sellResult.message}`, 'error');
                                 }
+                            } else {
+                                addAutoTradeLog('没有持仓可卖出', 'info');
                             }
                         }
+                    } else {
+                        addAutoTradeLog('策略信号为持有，不执行交易', 'info');
                     }
                 }
             }
@@ -581,6 +662,12 @@ function stopAutoTrade() {
         
         addAutoTradeLog('自动交易已停止', 'info');
         showToast('自动交易已停止', 'info');
+        
+        // 更新原始状态为非运行状态
+        autoTradeOriginalState.isRunning = false;
+        
+        // 从localStorage中移除自动交易配置
+        localStorage.removeItem('autoTradeConfig');
     }
 }
 
@@ -670,9 +757,60 @@ async function fetchStockHistory(stock_code, period = 'day', count = 30) {
     return result;
 }
 
-async function initMarketChart(marketData = null) {
+/**
+ * 自动选择最佳策略（平衡六种策略）
+ */
+function selectBestStrategy(stockCode) {
+    const strategies = ['ma', 'momentum', 'volume', 'macd', 'rsi', 'bollinger'];
+    
+    // 使用时间戳的模运算来平衡选择策略，确保六种策略都能被均匀使用
+    const now = Date.now();
+    const strategyIndex = now % strategies.length;
+    
+    return strategies[strategyIndex];
+}
+
+/**
+ * 显示计算过程的可视化反馈
+ */
+function displayCalculationProcess(strategyData) {
+    if (!strategyData || !strategyData.calculation_steps) {
+        return;
+    }
+    
+    const steps = strategyData.calculation_steps;
+    
+    // 添加策略名称到日志
+    addAutoTradeLog(`=== ${getStrategyName(strategyData.strategy_type)} 计算过程 ===`, 'info');
+    
+    // 添加关键步骤到日志
+    steps.forEach(step => {
+        let stepMessage = `${step.step}. ${step.name}: ${step.description}`;
+        
+        // 添加关键数据到日志
+        if (step.results) {
+            const results = Object.entries(step.results)
+                .map(([key, value]) => `${key}: ${typeof value === 'number' ? value.toFixed(4) : value}`)
+                .join(', ');
+            stepMessage += ` | 结果: ${results}`;
+        }
+        
+        addAutoTradeLog(stepMessage, 'info');
+    });
+    
+    // 添加最终信号到日志
+    addAutoTradeLog(`最终信号: ${strategyData.signal} | ${strategyData.reason}`, 'success');
+}
+
+// 全局变量，记录当前市场指数图的周期
+let currentMarketPeriod = 'day';
+
+async function initMarketChart(marketData = null, period = 'day') {
     const chartDom = document.getElementById('market-chart');
     if (!chartDom) return;
+    
+    // 更新当前周期
+    currentMarketPeriod = period;
     
     if (charts.market) {
         charts.market.dispose();
@@ -684,8 +822,16 @@ async function initMarketChart(marketData = null) {
     let prices = [];
     let useRealData = false;
     
+    // 获取不同周期的历史数据
+    let count = 30; // 默认获取30条数据
+    if (period === 'week') {
+        count = 20; // 周线获取20周数据
+    } else if (period === 'month') {
+        count = 12; // 月线获取12月数据
+    }
+    
     // 获取真实历史数据
-    const historyResult = await fetchMarketIndexHistory('000001', 'day', 30);
+    const historyResult = await fetchMarketIndexHistory('000001', period, count);
     if (historyResult.success && historyResult.data && historyResult.data.length > 0) {
         useRealData = true;
         // 使用真实历史数据
@@ -697,11 +843,26 @@ async function initMarketChart(marketData = null) {
         // 生成基于真实价格的模拟数据（备用方案）
         const realPrice = marketData ? marketData.current_price : 4101.91;
         const basePrice = realPrice;
-        timestamps = ['09:30', '10:00', '10:30', '11:00', '11:30', '13:00', '13:30', '14:00', '14:30', '15:00'];
-        prices = timestamps.map((time, index) => {
+        timestamps = [];
+        prices = [];
+        
+        // 根据不同周期生成模拟数据
+        for (let i = count - 1; i >= 0; i--) {
+            const date = new Date();
+            if (period === 'day') {
+                date.setDate(date.getDate() - i);
+                timestamps.push(`${date.getMonth() + 1}/${date.getDate()}`);
+            } else if (period === 'week') {
+                date.setDate(date.getDate() - i * 7);
+                timestamps.push(`${date.getMonth() + 1}/${date.getDate()}`);
+            } else if (period === 'month') {
+                date.setMonth(date.getMonth() - i);
+                timestamps.push(`${date.getFullYear()}/${date.getMonth() + 1}`);
+            }
+            
             const randomFactor = (Math.random() - 0.5) * 20;
-            return basePrice + randomFactor;
-        });
+            prices.push(basePrice + randomFactor);
+        }
     }
     
     const option = {
@@ -785,8 +946,8 @@ async function updateMarketData() {
                 marketStatusText.innerHTML = `上证指数: ${indexData.current_price.toFixed(2)} <span class="${statusClass}">${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%</span>`;
             }
             
-            // 更新走势图
-            initMarketChart(indexData);
+            // 更新走势图，传递当前周期
+            await initMarketChart(indexData, currentMarketPeriod);
         }
     }
 }
@@ -1018,8 +1179,136 @@ async function updateStockKlineChart(quote) {
     charts.kline.setOption(option);
 }
 
+/**
+ * 切换主题（深色/浅色）
+ */
 function toggleTheme() {
-    showToast('主题切换功能开发中', 'info');
+    const body = document.body;
+    // 检查当前主题
+    const isLightTheme = body.classList.contains('light-theme');
+    
+    if (isLightTheme) {
+        // 切换到深色主题
+        body.classList.remove('light-theme');
+        localStorage.setItem('theme', 'dark');
+        showToast('已切换到深色主题', 'success');
+    } else {
+        // 切换到浅色主题
+        body.classList.add('light-theme');
+        localStorage.setItem('theme', 'light');
+        showToast('已切换到浅色主题', 'success');
+    }
+    
+    // 重新初始化图表，确保主题样式生效
+    if (currentStock && currentStock.quote) {
+        updateStockKlineChart(currentStock.quote);
+    }
+    updateMarketData();
+}
+
+/**
+ * 显示当前时间和交易状态
+ */
+function updateCurrentTime() {
+    const now = new Date();
+    
+    // 格式化当前时间
+    const timeStr = now.toLocaleTimeString('zh-CN', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    const dateStr = now.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    
+    // 判断是否处于交易时间
+    const isTradingTime = isInTradingHours(now);
+    const tradingStatusText = isTradingTime ? '市场交易中' : '非交易时间';
+    
+    // 更新页面上的时间和交易状态
+    const timeElement = document.createElement('div');
+    timeElement.className = 'current-time';
+    timeElement.innerHTML = `${dateStr} ${timeStr} | ${tradingStatusText}`;
+    
+    // 找到market-status元素，在其前面插入时间元素
+    const marketStatusElement = document.querySelector('.market-status');
+    const existingTimeElement = document.querySelector('.current-time');
+    
+    if (existingTimeElement) {
+        existingTimeElement.remove();
+    }
+    
+    marketStatusElement.parentNode.insertBefore(timeElement, marketStatusElement);
+}
+
+/**
+ * 判断当前时间是否处于A股交易时间
+ * 交易时间：周一至周五
+ * 上午：9:30-11:30
+ * 下午：13:00-15:00
+ */
+function isInTradingHours(date) {
+    const day = date.getDay();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    
+    // 周末不交易
+    if (day === 0 || day === 6) {
+        return false;
+    }
+    
+    // 上午交易时间
+    const isMorningTrading = hours >= 9 && (hours > 9 || minutes >= 30) && hours < 11 || (hours === 11 && minutes <= 30);
+    
+    // 下午交易时间
+    const isAfternoonTrading = hours >= 13 && hours < 15;
+    
+    return isMorningTrading || isAfternoonTrading;
+}
+
+/**
+ * 监测交易时间，自动调整自动交易状态
+ * 在收盘时暂停自动交易，开盘时自动启动自动交易
+ */
+function monitorTradingTime() {
+    const now = new Date();
+    const isTradingTime = isInTradingHours(now);
+    
+    // 检查自动交易当前状态
+    const isAutoTradeRunning = autoTradeInterval !== null;
+    
+    if (!isTradingTime && isAutoTradeRunning) {
+        // 非交易时间且自动交易正在运行，暂停自动交易
+        addAutoTradeLog('非交易时间，自动暂停自动交易', 'warning');
+        stopAutoTrade();
+    } else if (isTradingTime && !isAutoTradeRunning) {
+        // 交易时间且自动交易不在运行，尝试自动启动
+        
+        // 检查是否有自动交易配置
+        const stockCode = document.getElementById('auto-stock-code').value.trim();
+        const checkInterval = parseInt(document.getElementById('auto-check-interval').value);
+        const useAllCash = document.getElementById('use-all-cash').checked;
+        const tradeAmountInput = document.getElementById('auto-trade-amount');
+        
+        // 检查必要配置是否已填写
+        if (stockCode && checkInterval) {
+            if (useAllCash || (tradeAmountInput.value && parseFloat(tradeAmountInput.value) > 0)) {
+                addAutoTradeLog('交易时间，自动启动自动交易', 'success');
+                
+                // 启动自动交易
+                startAutoTrade();
+            } else {
+                addAutoTradeLog('交易时间，但自动交易配置不完整，无法自动启动', 'warning');
+            }
+        } else {
+            addAutoTradeLog('交易时间，但自动交易配置不完整，无法自动启动', 'warning');
+        }
+    }
 }
 
 async function refreshAll() {
@@ -1032,6 +1321,23 @@ async function refreshAll() {
     
     if (currentStock) {
         await selectStock(currentStock);
+    }
+}
+
+/**
+ * 切换交易金额输入框的可用性
+ */
+function toggleTradeAmountInput() {
+    const useAllCash = document.getElementById('use-all-cash').checked;
+    const tradeAmountInput = document.getElementById('auto-trade-amount');
+    
+    if (useAllCash) {
+        tradeAmountInput.value = '';
+        tradeAmountInput.disabled = true;
+        tradeAmountInput.placeholder = '使用全部可用资金';
+    } else {
+        tradeAmountInput.disabled = false;
+        tradeAmountInput.placeholder = '输入交易金额';
     }
 }
 
@@ -1061,13 +1367,29 @@ document.getElementById('search-input').addEventListener('keypress', (e) => {
 document.querySelectorAll('.chart-btn[data-period]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
         const period = e.target.getAttribute('data-period');
-        currentKlinePeriod = period;
         
-        document.querySelectorAll('.chart-btn[data-period]').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        
-        if (currentStock && currentStock.quote) {
-            await updateStockKlineChart(currentStock.quote);
+        // 检查是否是市场指数图的周期切换按钮
+        const chartCard = e.target.closest('.chart-card');
+        if (chartCard && chartCard.querySelector('#market-chart')) {
+            // 更新市场指数图周期
+            currentMarketPeriod = period;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.chart-card .chart-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // 重新加载市场指数数据
+            await updateMarketData();
+        } else {
+            // 股票K线图周期切换
+            currentKlinePeriod = period;
+            
+            document.querySelectorAll('.chart-btn[data-period]').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            if (currentStock && currentStock.quote) {
+                await updateStockKlineChart(currentStock.quote);
+            }
         }
     });
 });
@@ -1081,7 +1403,60 @@ window.addEventListener('resize', () => {
 });
 
 window.onload = () => {
+    // 初始化主题
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+    }
+    
     refreshAll();
     updateMarketData();
     showToast('欢迎使用QuantTrade智能量化交易平台', 'info');
+    
+    // 初始化时间显示
+    updateCurrentTime();
+    // 设置定时器，每秒更新时间
+    setInterval(updateCurrentTime, 1000);
+    
+    // 启动交易时间监测，每分钟检查一次
+    setInterval(monitorTradingTime, 60000);
+    
+    // 检查localStorage中是否有自动交易配置，如果有则自动启动
+    const autoTradeConfig = localStorage.getItem('autoTradeConfig');
+    if (autoTradeConfig) {
+        try {
+            const config = JSON.parse(autoTradeConfig);
+            if (config.isRunning) {
+                // 恢复自动交易配置
+                document.getElementById('auto-stock-code').value = config.stockCode;
+                document.getElementById('auto-strategy-type').value = config.strategyType;
+                document.getElementById('auto-trade-amount').value = config.tradeAmount || '';
+                document.getElementById('use-all-cash').checked = config.useAllCash;
+                document.getElementById('auto-check-interval').value = config.checkInterval;
+                
+                // 恢复交易金额输入框的状态
+                toggleTradeAmountInput();
+                
+                // 更新原始状态
+                autoTradeOriginalState = {
+                    isRunning: true,
+                    stockCode: config.stockCode,
+                    strategyType: config.strategyType,
+                    tradeAmount: config.tradeAmount,
+                    useAllCash: config.useAllCash,
+                    checkInterval: config.checkInterval
+                };
+                
+                // 显示自动交易正在恢复的提示
+                showToast('正在恢复自动交易...', 'info');
+                
+                // 延迟启动自动交易，确保页面完全加载
+                setTimeout(() => {
+                    startAutoTrade();
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('恢复自动交易配置失败:', error);
+        }
+    }
 };
