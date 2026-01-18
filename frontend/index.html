@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantTrade - 智能量化交易平台</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">Q</div>
+                <div class="logo-text">QuantTrade</div>
+            </div>
+            
+            <div class="nav-menu">
+                <div class="nav-item active" data-tab="dashboard">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>仪表盘</span>
+                </div>
+                <div class="nav-item" data-tab="trading">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M3 3v18h18"></path>
+                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path>
+                    </svg>
+                    <span>交易</span>
+                </div>
+                <div class="nav-item" data-tab="positions">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                    <span>持仓</span>
+                </div>
+                <div class="nav-item" data-tab="strategy">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span>策略</span>
+                </div>
+                <div class="nav-item" data-tab="auto-trade">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                        <polyline points="17 6 23 6 23 12"></polyline>
+                    </svg>
+                    <span>自动交易</span>
+                </div>
+                <div class="nav-item" data-tab="history">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>历史记录</span>
+                </div>
+            </div>
+
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">量化交易者</div>
+                    <div class="user-status">在线</div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1 id="page-title">仪表盘</h1>
+                    <span class="page-subtitle">智能量化交易系统</span>
+                </div>
+                
+                <div class="top-bar-actions">
+                    <div class="market-status">
+                        <span class="status-dot"></span>
+                        <span id="market-status-text">市场交易中</span>
+                    </div>
+                    <button class="btn-icon" onclick="refreshAll()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M23 4v6h-6"></path>
+                            <path d="M1 20v-6h6"></path>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="toggleTheme()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <div id="tab-dashboard" class="tab-content active">
+                    <div class="dashboard-grid">
+                        <div class="card account-overview">
+                            <div class="card-header">
+                                <h3>账户概览</h3>
+                                <button class="btn-reset" onclick="resetAccount()">重置账户</button>
+                            </div>
+                            <div class="account-stats">
+                                <div class="stat-item">
+                                    <div class="stat-label">总资产</div>
+                                    <div class="stat-value" id="total-assets">¥0.00</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">可用资金</div>
+                                    <div class="stat-value" id="available-cash">¥0.00</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">持仓市值</div>
+                                    <div class="stat-value" id="market-value">¥0.00</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">总盈亏</div>
+                                    <div class="stat-value" id="total-profit">¥0.00</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">盈亏比例</div>
+                                    <div class="stat-value" id="profit-rate">0.00%</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">初始资金</div>
+                                    <div class="stat-value" id="initial-capital">¥0.00</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h3>市场指数</h3>
+                                <div class="chart-controls">
+                                    <button class="chart-btn active" data-type="kline">K线</button>
+                                    <button class="chart-btn" data-type="line">分时</button>
+                                </div>
+                            </div>
+                            <div id="market-chart" class="chart-container"></div>
+                        </div>
+
+                        <div class="card portfolio-chart">
+                            <div class="card-header">
+                                <h3>持仓分布</h3>
+                            </div>
+                            <div id="portfolio-chart" class="chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-trading" class="tab-content">
+                    <div class="trading-layout">
+                        <div class="trading-panel">
+                            <div class="card stock-search">
+                                <div class="card-header">
+                                    <h3>股票搜索</h3>
+                                </div>
+                                <div class="search-container">
+                                    <div class="search-input-wrapper">
+                                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                        <input type="text" id="search-input" placeholder="搜索股票代码">
+                                    </div>
+                                    <button class="btn-primary" onclick="searchStock()">搜索</button>
+                                </div>
+                                <div id="search-results" class="search-results"></div>
+                            </div>
+
+                            <div class="card stock-detail">
+                                <div class="card-header">
+                                    <h3>股票详情</h3>
+                                </div>
+                                <div id="stock-detail-content">
+                                    <p class="placeholder-text">请先搜索并选择股票</p>
+                                </div>
+                            </div>
+
+                            <div class="card trade-form">
+                                <div class="card-header">
+                                    <h3>交易操作</h3>
+                                </div>
+                                <div class="trade-inputs">
+                                    <div class="input-group">
+                                        <label>股票代码</label>
+                                        <input type="text" id="trade-stock-code" readonly>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>股票名称</label>
+                                        <input type="text" id="trade-stock-name" readonly>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>价格</label>
+                                        <input type="number" id="trade-price" step="0.01">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>数量</label>
+                                        <input type="number" id="trade-shares" step="100" min="100">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>预估金额</label>
+                                        <div class="estimated-amount" id="estimated-amount">¥0.00</div>
+                                    </div>
+                                </div>
+                                <div class="trade-buttons">
+                                    <button class="btn-buy" onclick="executeTrade('buy')">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path d="M12 5v14M5 12h14"></path>
+                                        </svg>
+                                        买入
+                                    </button>
+                                    <button class="btn-sell" onclick="executeTrade('sell')">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path d="M5 12h14"></path>
+                                        </svg>
+                                        卖出
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chart-panel">
+                            <div class="card stock-chart">
+                                <div class="card-header">
+                                    <h3>K线图</h3>
+                                    <div class="chart-controls">
+                                        <button class="chart-btn active" data-period="day">日K</button>
+                                        <button class="chart-btn" data-period="week">周K</button>
+                                        <button class="chart-btn" data-period="month">月K</button>
+                                    </div>
+                                </div>
+                                <div id="stock-kline-chart" class="chart-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-positions" class="tab-content">
+                    <div class="card positions-card">
+                        <div class="card-header">
+                            <h3>持仓列表</h3>
+                            <div class="card-actions">
+                                <button class="btn-secondary" onclick="refreshPositions()">刷新持仓</button>
+                            </div>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>股票代码</th>
+                                        <th>股票名称</th>
+                                        <th>持仓数量</th>
+                                        <th>成本价</th>
+                                        <th>现价</th>
+                                        <th>市值</th>
+                                        <th>盈亏</th>
+                                        <th>盈亏比例</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="positions-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-strategy" class="tab-content">
+                    <div class="strategy-grid">
+                        <div class="card strategy-form-card">
+                            <div class="card-header">
+                                <h3>策略分析</h3>
+                            </div>
+                            <div class="strategy-inputs">
+                                <div class="input-group">
+                                    <label>股票代码</label>
+                                    <input type="text" id="strategy-stock-code" placeholder="输入股票代码">
+                                </div>
+                                <div class="input-group">
+                                    <label>策略类型</label>
+                                    <select id="strategy-type">
+                                        <option value="ma">均线策略</option>
+                                        <option value="momentum">动量策略</option>
+                                        <option value="volume">成交量策略</option>
+                                        <option value="macd">MACD策略</option>
+                                        <option value="rsi">RSI策略</option>
+                                        <option value="bollinger">布林带策略</option>
+                                    </select>
+                                </div>
+                                <button class="btn-primary" onclick="analyzeStrategy()">分析</button>
+                            </div>
+                        </div>
+
+                        <div class="card strategy-result-card">
+                            <div class="card-header">
+                                <h3>分析结果</h3>
+                            </div>
+                            <div id="strategy-result" class="strategy-result-content">
+                                <p class="placeholder-text">请输入股票代码并选择策略进行分析</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card strategy-explanation-card">
+                        <div class="card-header">
+                            <h3>策略原理解析</h3>
+                        </div>
+                        <div class="strategy-explanation-content">
+                            <div class="strategy-explanation-item" data-strategy="ma">
+                                <h4>均线策略 (MA)</h4>
+                                <div class="explanation-content">
+                                    <p><strong>原理：</strong>基于移动平均线（Moving Average）判断股价趋势。当短期均线上穿长期均线时形成金叉，为买入信号；当短期均线下穿长期均线时形成死叉，为卖出信号。</p>
+                                    <p><strong>使用方法：</strong></p>
+                                    <ul>
+                                        <li>股价站上所有均线（MA5、MA10、MA20）→ 买入</li>
+                                        <li>股价跌破短期均线（MA5、MA10）→ 卖出</li>
+                                        <li>均线空头排列（MA5 < MA10 < MA20）→ 卖出</li>
+                                        <li>股价在均线附近震荡 → 观望</li>
+                                    </ul>
+                                    <p><strong>优点：</strong>简单易懂，适合趋势明显的行情</p>
+                                    <p><strong>缺点：</strong>滞后性较强，震荡市容易产生假信号</p>
+                                </div>
+                            </div>
+
+                            <div class="strategy-explanation-item" data-strategy="momentum">
+                                <h4>动量策略 (Momentum)</h4>
+                                <div class="explanation-content">
+                                    <p><strong>原理：</strong>基于价格涨跌幅度判断市场动能。强势上涨表明多头力量强劲，大幅下跌表明空头力量占优。</p>
+                                    <p><strong>使用方法：</strong></p>
+                                    <ul>
+                                        <li>强势涨停（涨幅 > 7%）且放量 → 买入</li>
+                                        <li>温和上涨（涨幅 > 3%）→ 买入</li>
+                                        <li>大幅下跌（跌幅 < -7%）→ 卖出</li>
+                                        <li>温和下跌（跌幅 < -3%）→ 卖出</li>
+                                        <li>波动较小（-3% ~ 3%）→ 观望</li>
+                                    </ul>
+                                    <p><strong>优点：</strong>能够捕捉强势行情，适合追涨杀跌</p>
+                                    <p><strong>缺点：</strong>容易追高杀跌，需要严格止损</p>
+                                </div>
+                            </div>
+
+                            <div class="strategy-explanation-item" data-strategy="volume">
+                                <h4>成交量策略 (Volume)</h4>
+                                <div class="explanation-content">
+                                    <p><strong>原理：</strong>基于成交量变化判断资金流向。量价配合是技术分析的重要原则，放量上涨表明资金流入，放量下跌表明资金流出。</p>
+                                    <p><strong>使用方法：</strong></p>
+                                    <ul>
+                                        <li>放量上涨（成交量 > 2倍均量）→ 买入</li>
+                                        <li>放量下跌（成交量 > 2倍均量）→ 卖出</li>
+                                        <li>成交量萎缩（成交量 < 0.5倍均量）→ 观望</li>
+                                        <li>温和放量上涨（成交量 > 1.5倍均量）→ 买入</li>
+                                    </ul>
+                                    <p><strong>优点：</strong>能够识别主力资金动向</p>
+                                    <p><strong>缺点：</strong>需要结合价格走势综合判断</p>
+                                </div>
+                            </div>
+
+                            <div class="strategy-explanation-item" data-strategy="macd">
+                                <h4>MACD策略</h4>
+                                <div class="explanation-content">
+                                    <p><strong>原理：</strong>MACD（Moving Average Convergence Divergence）是指数平滑异同移动平均线，由DIF、DEA和MACD三部分组成。金叉为买入信号，死叉为卖出信号。</p>
+                                    <p><strong>使用方法：</strong></p>
+                                    <ul>
+                                        <li>DIF上穿DEA（金叉）且在零轴上方 → 强力买入</li>
+                                        <li>DIF下穿DEA（死叉）且在零轴下方 → 强力卖出</li>
+                                        <li>DIF和DEA都在零轴上方 → 多头趋势，买入</li>
+                                        <li>DIF和DEA都在零轴下方 → 空头趋势，卖出</li>
+                                    </ul>
+                                    <p><strong>优点：</strong>能够有效识别趋势变化</p>
+                                    <p><strong>缺点：</strong>在震荡市中容易产生假信号</p>
+                                </div>
+                            </div>
+
+                            <div class="strategy-explanation-item" data-strategy="rsi">
+                                <h4>RSI策略</h4>
+                                <div class="explanation-content">
+                                    <p><strong>原理：</strong>RSI（Relative Strength Index）相对强弱指标，用于衡量价格上涨和下跌的力度。RSI > 70为超买，RSI < 30为超卖。</p>
+                                    <p><strong>使用方法：</strong></p>
+                                    <ul>
+                                        <li>RSI < 30（超卖）→ 买入</li>
+                                        <li>RSI > 70（超买）→ 卖出</li>
+                                        <li>RSI < 40（偏低）→ 考虑买入</li>
+                                        <li>RSI > 60（偏高）→ 考虑卖出</li>
+                                        <li>RSI在40-60之间（中性）→ 观望</li>
+                                    </ul>
+                                    <p><strong>优点：</strong>能够有效识别超买超卖</p>
+                                    <p><strong>缺点：</strong>在强趋势中容易失效</p>
+                                </div>
+                            </div>
+
+                            <div class="strategy-explanation-item" data-strategy="bollinger">
+                                <h4>布林带策略 (Bollinger Bands)</h4>
+                                <div class="explanation-content">
+                                    <p><strong>原理：</strong>布林带由中轨（20日均线）、上轨（中轨+2倍标准差）和下轨（中轨-2倍标准差）组成。股价触及上下轨时可能反转。</p>
+                                    <p><strong>使用方法：</strong></p>
+                                    <ul>
+                                        <li>股价突破上轨 → 超买，卖出</li>
+                                        <li>股价跌破下轨 → 超卖，买入</li>
+                                        <li>股价在中轨上方且布林带开口 → 买入</li>
+                                        <li>股价在中轨下方且布林带开口 → 卖出</li>
+                                        <li>布林带收窄（带宽 < 5%）→ 等待突破，观望</li>
+                                    </ul>
+                                    <p><strong>优点：</strong>能够识别价格波动范围</p>
+                                    <p><strong>缺点：</strong>在强趋势中容易过早离场</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-auto-trade" class="tab-content">
+                    <div class="auto-trade-grid">
+                        <div class="card auto-trade-config">
+                            <div class="card-header">
+                                <h3>自动交易配置</h3>
+                            </div>
+                            <div class="auto-trade-inputs">
+                                <div class="input-group">
+                                    <label>股票代码</label>
+                                    <input type="text" id="auto-stock-code" placeholder="输入股票代码">
+                                </div>
+                                <div class="input-group">
+                                    <label>策略类型</label>
+                                    <select id="auto-strategy-type">
+                                        <option value="ma">均线策略</option>
+                                        <option value="momentum">动量策略</option>
+                                        <option value="volume">成交量策略</option>
+                                        <option value="macd">MACD策略</option>
+                                        <option value="rsi">RSI策略</option>
+                                        <option value="bollinger">布林带策略</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label>交易金额</label>
+                                    <input type="number" id="auto-trade-amount" placeholder="输入交易金额">
+                                </div>
+                                <div class="input-group">
+                                    <label>检查间隔（秒）</label>
+                                    <input type="number" id="auto-check-interval" value="60" min="10">
+                                </div>
+                                <div class="auto-trade-status">
+                                    <div class="status-indicator" id="auto-trade-status"></div>
+                                    <span id="auto-trade-status-text">未启动</span>
+                                </div>
+                                <div class="auto-trade-buttons">
+                                    <button class="btn-success" id="btn-start-auto-trade" onclick="startAutoTrade()">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                        </svg>
+                                        启动
+                                    </button>
+                                    <button class="btn-danger" id="btn-stop-auto-trade" onclick="stopAutoTrade()" disabled>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <rect x="6" y="4" width="4" height="16"></rect>
+                                            <rect x="14" y="4" width="4" height="16"></rect>
+                                        </svg>
+                                        停止
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card auto-trade-log">
+                            <div class="card-header">
+                                <h3>交易日志</h3>
+                                <button class="btn-secondary" onclick="clearAutoTradeLog()">清空日志</button>
+                            </div>
+                            <div id="auto-trade-log-content" class="log-content">
+                                <p class="placeholder-text">暂无交易日志</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-history" class="tab-content">
+                    <div class="card history-card">
+                        <div class="card-header">
+                            <h3>交易记录</h3>
+                            <div class="card-actions">
+                                <button class="btn-secondary" onclick="refreshTrades()">刷新记录</button>
+                            </div>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>类型</th>
+                                        <th>股票代码</th>
+                                        <th>股票名称</th>
+                                        <th>价格</th>
+                                        <th>数量</th>
+                                        <th>金额</th>
+                                        <th>手续费</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trades-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <footer class="api-info-footer">
+        <div class="api-info-content">
+            <div class="api-info-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <h4>数据来源说明</h4>
+            </div>
+            <div class="api-info-details">
+                <div class="api-info-item">
+                    <span class="api-label">数据提供商：</span>
+                    <span class="api-value">东方财富网 (EastMoney)</span>
+                </div>
+                <div class="api-info-item">
+                    <span class="api-label">API类型：</span>
+                    <span class="api-value">公开免费API接口</span>
+                </div>
+                <div class="api-info-item">
+                    <span class="api-label">数据内容：</span>
+                    <span class="api-value">实时行情、股票搜索、市场指数</span>
+                </div>
+                <div class="api-info-item">
+                    <span class="api-label">数据延迟：</span>
+                    <span class="api-value">实时（可能存在轻微延迟）</span>
+                </div>
+                <div class="api-info-item">
+                    <span class="api-label">使用条款：</span>
+                    <span class="api-value">仅供学习研究使用，不构成投资建议</span>
+                </div>
+            </div>
+            <div class="api-disclaimer">
+                <p>⚠️ 免责声明：本系统使用的数据来源于东方财富网公开API接口，仅供学习研究使用。所有数据仅供参考，不构成任何投资建议。投资有风险，入市需谨慎。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

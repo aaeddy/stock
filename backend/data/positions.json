@@ -1,0 +1,13 @@
+[
+  {
+    "stock_code": "600516",
+    "stock_name": "方大炭素",
+    "shares": 100,
+    "cost_price": 1.0,
+    "cost_amount": 100.0,
+    "current_price": 5.9,
+    "market_value": 590.0,
+    "profit": 490.0,
+    "profit_rate": 490.00000000000006
+  }
+]

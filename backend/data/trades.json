@@ -1,0 +1,13 @@
+[
+  {
+    "trade_type": "buy",
+    "stock_code": "600516",
+    "stock_name": "方大炭素",
+    "shares": 100,
+    "price": 1.0,
+    "amount": 100.0,
+    "commission": 5.0,
+    "total_amount": 105.0,
+    "created_at": "2026-01-18T04:26:55.484757"
+  }
+]
