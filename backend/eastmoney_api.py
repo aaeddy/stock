@@ -216,7 +216,7 @@ class EastMoneyAPI:
             count: 获取数据条数，默认为30条
             
         Returns:
-            包含历史K线数据的列表，失败返回None
+            包含历史行情数据的列表，失败返回None
         """
         try:
             if stock_code.startswith('6'):

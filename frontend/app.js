@@ -1,4 +1,4 @@
-// 使用当前页面的主机名作为API基础URL，解决手机连接局域网时的问题
+// 使用当前页面的主机名作为API基础URL，解决其他设备连接局域网访问时错误解析localhost的问题
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
 let currentStock = null;
@@ -34,12 +34,26 @@ async function fetchAPI(endpoint, options = {}) {
 }
 
 function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
+    let toast = document.getElementById('toast');
+    
+    // 如果toast元素不存在，创建一个新的
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
+    
     toast.textContent = message;
     toast.className = `toast ${type} show`;
     
     setTimeout(() => {
         toast.classList.remove('show');
+        // 等待动画结束后删除元素
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 300); // 与CSS过渡动画时间一致
     }, 3000);
 }
 
@@ -938,9 +952,12 @@ async function updateMarketData() {
     if (result.success) {
         const indexData = result.data;
         if (indexData) {
-            // 显示真实的上证指数数字
+            // 显示真实的上证指数数字，只在交易时间显示
+            const now = new Date();
+            const isTradingTime = isInTradingHours(now);
+            
             const marketStatusText = document.getElementById('market-status-text');
-            if (marketStatusText) {
+            if (marketStatusText && isTradingTime) {
                 const changePercent = indexData.change_percent;
                 const statusClass = changePercent >= 0 ? 'positive' : 'negative';
                 marketStatusText.innerHTML = `上证指数: ${indexData.current_price.toFixed(2)} <span class="${statusClass}">${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%</span>`;
@@ -1233,7 +1250,7 @@ function updateCurrentTime() {
     // 更新页面上的时间和交易状态
     const timeElement = document.createElement('div');
     timeElement.className = 'current-time';
-    timeElement.innerHTML = `${dateStr} ${timeStr} | ${tradingStatusText}`;
+    timeElement.innerHTML = `${dateStr} ${timeStr}`;
     
     // 找到market-status元素，在其前面插入时间元素
     const marketStatusElement = document.querySelector('.market-status');
@@ -1241,6 +1258,15 @@ function updateCurrentTime() {
     
     if (existingTimeElement) {
         existingTimeElement.remove();
+    }
+    
+    // 同时更新market-status-text元素的交易状态
+    const marketStatusText = document.getElementById('market-status-text');
+    if (marketStatusText) {
+        // 保留上证指数信息，只在非交易时间显示状态
+        if (!isTradingTime) {
+            marketStatusText.innerHTML = tradingStatusText;
+        }
     }
     
     marketStatusElement.parentNode.insertBefore(timeElement, marketStatusElement);

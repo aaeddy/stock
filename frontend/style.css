@@ -30,7 +30,7 @@ body.light-theme {
     --bg-secondary: #f7fafc;
     --bg-tertiary: #edf2f7;
     --bg-card: #ffffff;
-    --text-primary: #1a202c;
+    --text-primary: #263d6a;
     --text-secondary: #4a5568;
     --text-muted: #718096;
     --accent-primary: #6366f1;
@@ -182,14 +182,13 @@ body {
 }
 
 .user-name {
-    font-weight: 600;
-    font-size: 14px;
+    font-size: 18px;
     color: var(--text-primary);
 }
 
 .user-status {
-    font-size: 12px;
-    color: var(--accent-success);
+    font-size: 14px;
+    color: var(--accent-secondary);
 }
 
 .main-content {
