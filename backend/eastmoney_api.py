@@ -1,9 +1,43 @@
 import requests
 import json
+import time
 from typing import Dict, List, Optional
 
 class EastMoneyAPI:
-    BASE_URL = "http://push2.eastmoney.com/api/qt"
+    BASE_URL = "https://push2.eastmoney.com/api/qt"
+    
+    # 通用请求头，模拟浏览器请求
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Connection': 'keep-alive'
+    }
+    
+    @staticmethod
+    def _request_with_retry(url, params, max_retries=3):
+        """
+        带重试机制的HTTP请求
+        
+        Args:
+            url: 请求URL
+            params: 请求参数
+            max_retries: 最大重试次数
+            
+        Returns:
+            响应对象
+        """
+        for retry in range(max_retries):
+            try:
+                response = requests.get(url, params=params, headers=EastMoneyAPI.HEADERS, timeout=10)
+                response.raise_for_status()  # 检查HTTP错误
+                return response
+            except (requests.RequestException, ConnectionError) as e:
+                if retry < max_retries - 1:
+                    print(f"请求失败，{retry+1}秒后重试: {e}")
+                    time.sleep(1)  # 等待1秒后重试
+                else:
+                    raise
 
     @staticmethod
     def get_stock_quote(stock_code: str) -> Optional[Dict]:
@@ -62,7 +96,7 @@ class EastMoneyAPI:
                 'fields': 'f43,f44,f45,f46,f47,f48,f49,f50,f51,f52,f57,f58,f60,f107,f116,f117,f168,f169,f170',
             }
 
-            response = requests.get(url, params=params, timeout=10)
+            response = EastMoneyAPI._request_with_retry(url, params)
             data = response.json()
 
             if data and data.get('data'):
@@ -117,7 +151,7 @@ class EastMoneyAPI:
                 'type': '14',
             }
 
-            response = requests.get(url, params=params, timeout=10)
+            response = EastMoneyAPI._request_with_retry(url, params)
             data = response.json()
 
             if data and data.get('QuotationCodeTable'):
@@ -170,7 +204,7 @@ class EastMoneyAPI:
                 'fields': 'f43,f44,f45,f46,f60,f170',
             }
 
-            response = requests.get(url, params=params, timeout=10)
+            response = EastMoneyAPI._request_with_retry(url, params)
             data = response.json()
 
             if data and data.get('data'):
@@ -250,7 +284,7 @@ class EastMoneyAPI:
                 'lmt': count
             }
 
-            response = requests.get(url, params=params, timeout=10)
+            response = EastMoneyAPI._request_with_retry(url, params)
             data = response.json()
 
             if data and data.get('data'):
@@ -332,7 +366,7 @@ class EastMoneyAPI:
                 'lmt': count
             }
 
-            response = requests.get(url, params=params, timeout=10)
+            response = EastMoneyAPI._request_with_retry(url, params)
             data = response.json()
 
             if data and data.get('data'):

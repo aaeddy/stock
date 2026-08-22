@@ -141,6 +141,8 @@ def new_strategy(self, quote: dict) -> dict:
 
 修改 `backend/config.py` 中的 `COMMISSION_RATE` 和 `MIN_COMMISSION` 值
 
+### 东方财富API可能有反爬措施，经测试会封禁IP，建议使用代理IP访问
+
 ## 许可证
 
 MIT License
